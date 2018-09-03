@@ -36,10 +36,11 @@ public class TarqlTest {
 	
 	private void assertSelect(TarqlQuery tq, Binding... bindings) throws IOException{
 		TarqlQueryExecution ex;
+		Model m = ModelFactory.createDefaultModel();
 		if (csv == null) {
-			ex = TarqlQueryExecutionFactory.create(tq, options);
+			ex = TarqlQueryExecutionFactory.create(tq, options,m);
 		} else {
-			ex = TarqlQueryExecutionFactory.create(tq, InputStreamSource.fromBytes(csv.getBytes("utf-8")), options);
+			ex = TarqlQueryExecutionFactory.create(tq, InputStreamSource.fromBytes(csv.getBytes("utf-8")), options,m);
 		}
 		ResultSet rs = ex.execSelect();
 		int counter = 0;
@@ -54,8 +55,9 @@ public class TarqlTest {
 	}
 	
 	private void assertConstruct(TarqlQuery tq, String expectedTTL) throws IOException {
+		Model m = ModelFactory.createDefaultModel();
 		Model expected = ModelFactory.createDefaultModel().read(new StringReader(expectedTTL), null, "TURTLE");
-		TarqlQueryExecution ex = TarqlQueryExecutionFactory.create(tq, InputStreamSource.fromBytes(csv.getBytes("utf-8")), options);
+		TarqlQueryExecution ex = TarqlQueryExecutionFactory.create(tq, InputStreamSource.fromBytes(csv.getBytes("utf-8")), options, m);
 		Model actual = ModelFactory.createDefaultModel();
 		ex.exec(actual);
 		if (!actual.isIsomorphicWith(expected)) {

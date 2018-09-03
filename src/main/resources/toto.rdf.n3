@@ -1,0 +1,5 @@
+@prefix : <http://datao.net/test/>.
+
+
+:toto :tata "1".
+:toto2 :tata "2".

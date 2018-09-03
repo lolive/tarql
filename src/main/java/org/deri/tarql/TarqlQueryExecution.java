@@ -29,6 +29,7 @@ import org.deri.tarql.functions.ExpandPrefixFunction;
 public class TarqlQueryExecution {
 	private final CSVTable table;
 	private final TarqlQuery tq;
+	private Model mmodel;
 
 	/**
 	 * Sets up a new query execution.
@@ -37,7 +38,7 @@ public class TarqlQueryExecution {
 	 * @param options Configuration options for the CSV file
 	 * @param query The input query
 	 */
-	public TarqlQueryExecution(InputStreamSource source, CSVOptions options, TarqlQuery query) {
+	public TarqlQueryExecution(InputStreamSource source, CSVOptions options, TarqlQuery query, Model mmodel) {
 		if (options == null) {
 			options = new CSVOptions();
 		}
@@ -56,6 +57,7 @@ public class TarqlQueryExecution {
 		}
 		table = new CSVTable(source, options);
 		tq = query;
+		this.mmodel = mmodel;
 	}
 
 	/**
@@ -131,11 +133,11 @@ public class TarqlQueryExecution {
 	}
 
 	public Iterator<Triple> execTriples() throws IOException {
-		Model model = ModelFactory.createDefaultModel();
+
 		ExtendedIterator<Triple> result = new NullIterator<Triple>();
 		for (Query q: tq.getQueries()) {
 			modifyQuery(q, table);
-			QueryExecution ex = createQueryExecution(q, model);
+			QueryExecution ex = createQueryExecution(q, mmodel);
 			result = result.andThen(ex.execConstructTriples());
 		}
 		return result;
@@ -145,7 +147,7 @@ public class TarqlQueryExecution {
 		//TODO check only first query. right?
 		Query q = getFirstQuery();
 		modifyQuery(q, table);
-		QueryExecution ex = createQueryExecution(q, ModelFactory.createDefaultModel());
+		QueryExecution ex = createQueryExecution(q, mmodel);
 		return ex.execSelect();
 	}
 

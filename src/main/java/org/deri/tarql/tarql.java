@@ -12,6 +12,8 @@ import org.apache.jena.atlas.lib.Lib;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.query.QueryParseException;
 import org.apache.jena.query.ResultSetFormatter;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.shared.NotFoundException;
 import org.apache.jena.sparql.serializer.FmtTemplate;
 import org.apache.jena.sparql.serializer.SerializationContext;
@@ -73,6 +75,7 @@ public class tarql extends CmdGeneral {
 	
 	private String queryFile;
 	private List<String> csvFiles = new ArrayList<String>();
+	private List<String> rdfFiles = new ArrayList<String>();
 	private boolean stdin = false;
 	private CSVOptions options = new CSVOptions();
 	private boolean testQuery = false;
@@ -126,7 +129,11 @@ public class tarql extends CmdGeneral {
 		}
 		queryFile = getPositionalArg(0);
 		for (int i = 1; i < getPositional().size(); i++) {
-			csvFiles.add(getPositionalArg(i));
+			String f = getPositionalArg(i);
+			if(f.endsWith(".csv"))
+				csvFiles.add(f);
+			else
+				rdfFiles.add(f);
 		}
 		if (hasArg(stdinArg)) {
 			stdin = true;
@@ -192,20 +199,26 @@ public class tarql extends CmdGeneral {
 			TarqlQuery q = baseIRI == null
 					? new TarqlParser(queryFile).getResult()
 					: new TarqlParser(queryFile, baseIRI).getResult();
+
+			Model m = ModelFactory.createDefaultModel();
+			if(!rdfFiles.isEmpty()){
+				for(String f:rdfFiles)
+					m.read(f);
+			}
 			if (testQuery) {
 				q.makeTest();
 			}
 			if (stdin) {
 				processResults(TarqlQueryExecutionFactory.create(q, 
-						InputStreamSource.fromStdin(), options));
+						InputStreamSource.fromStdin(), options, m));
 			} else if (csvFiles.isEmpty()) {
-				processResults(TarqlQueryExecutionFactory.create(q, options));
+				processResults(TarqlQueryExecutionFactory.create(q, options, m));
 			} else {
 				for (String csvFile: csvFiles) {
 					URLOptionsParser parseResult = new URLOptionsParser(csvFile);
 					processResults(TarqlQueryExecutionFactory.create(q, 
 							InputStreamSource.fromFilenameOrIRI(parseResult.getRemainingURL()), 
-							parseResult.getOptions(options)));
+							parseResult.getOptions(options), m));
 				}
 			}
 			if (resultTripleIterator.hasNext()) {

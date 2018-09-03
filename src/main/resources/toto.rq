@@ -1,0 +1,9 @@
+prefix f: <http://datao.net/test/>
+
+construct { 
+    ?s f:titi ?s2
+}
+where {
+    ?s f:tata ?aa .
+    ?s2 f:tata ?bb .
+}

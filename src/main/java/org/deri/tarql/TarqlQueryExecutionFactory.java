@@ -3,6 +3,7 @@ package org.deri.tarql;
 import java.io.IOException;
 
 import org.apache.jena.query.Query;
+import org.apache.jena.rdf.model.Model;
 import org.apache.jena.util.FileManager;
 
 
@@ -11,42 +12,42 @@ import org.apache.jena.util.FileManager;
  */
 public class TarqlQueryExecutionFactory {
 
-	public static TarqlQueryExecution create(TarqlQuery query) throws IOException {
-		return create(query, FileManager.get(), new CSVOptions());
+	public static TarqlQueryExecution create(TarqlQuery query, Model m) throws IOException {
+		return create(query, FileManager.get(), new CSVOptions(), m);
 	}
 
-	public static TarqlQueryExecution create(TarqlQuery query, CSVOptions options) throws IOException {
-		return create(query, FileManager.get(), options);
+	public static TarqlQueryExecution create(TarqlQuery query, CSVOptions options, Model m) throws IOException {
+		return create(query, FileManager.get(), options, m);
 	}
 
-	public static TarqlQueryExecution create(TarqlQuery query, FileManager fm) throws IOException {
+	public static TarqlQueryExecution create(TarqlQuery query, FileManager fm, Model m) throws IOException {
 		String filenameOrURL = getSingleFromClause(query.getQueries().get(0), fm);
 		URLOptionsParser parseResult = new URLOptionsParser(filenameOrURL);
-		return create(query, InputStreamSource.fromFilenameOrIRI(parseResult.getRemainingURL(), fm), parseResult.getOptions());
+		return create(query, InputStreamSource.fromFilenameOrIRI(parseResult.getRemainingURL(), fm), parseResult.getOptions(), m);
 	}
 
-	public static TarqlQueryExecution create(TarqlQuery query, FileManager fm, CSVOptions options) throws IOException {
+	public static TarqlQueryExecution create(TarqlQuery query, FileManager fm, CSVOptions options, Model m) throws IOException {
 		String filenameOrURL = getSingleFromClause(query.getQueries().get(0), fm);
 		URLOptionsParser parseResult = new URLOptionsParser(filenameOrURL);
 		CSVOptions newOptions = new CSVOptions(parseResult.getOptions());
 		newOptions.overrideWith(options);
-		return create(query, InputStreamSource.fromFilenameOrIRI(parseResult.getRemainingURL(), fm), newOptions);
+		return create(query, InputStreamSource.fromFilenameOrIRI(parseResult.getRemainingURL(), fm), newOptions, m);
 	}
 
-	public static TarqlQueryExecution create(TarqlQuery query, String filenameOrURL) throws IOException {
-		return create(query, InputStreamSource.fromFilenameOrIRI(filenameOrURL), new CSVOptions());
+	public static TarqlQueryExecution create(TarqlQuery query, String filenameOrURL, Model m) throws IOException {
+		return create(query, InputStreamSource.fromFilenameOrIRI(filenameOrURL), new CSVOptions(), m);
 	}
 
-	public static TarqlQueryExecution create(TarqlQuery query, String filenameOrURL, CSVOptions options) throws IOException {
-		return create(query, InputStreamSource.fromFilenameOrIRI(filenameOrURL), options);
+	public static TarqlQueryExecution create(TarqlQuery query, String filenameOrURL, CSVOptions options, Model m) throws IOException {
+		return create(query, InputStreamSource.fromFilenameOrIRI(filenameOrURL), options, m);
 	}
 	
-	public static TarqlQueryExecution create(TarqlQuery query, InputStreamSource input) {
-		return new TarqlQueryExecution(input, new CSVOptions(), query);
+	public static TarqlQueryExecution create(TarqlQuery query, InputStreamSource input, Model m) {
+		return new TarqlQueryExecution(input, new CSVOptions(), query, m);
 	}
 
-	public static TarqlQueryExecution create(TarqlQuery query, InputStreamSource input, CSVOptions options) {
-		return new TarqlQueryExecution(input, options, query);
+	public static TarqlQueryExecution create(TarqlQuery query, InputStreamSource input, CSVOptions options, Model m) {
+		return new TarqlQueryExecution(input, options, query, m);
 	}
 
 	private static String getSingleFromClause(Query query, FileManager fm) {

@@ -12,6 +12,8 @@ import java.util.Iterator;
 
 import org.apache.jena.graph.Triple;
 import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.shared.PrefixMapping;
 import org.apache.jena.shared.impl.PrefixMappingImpl;
 import org.apache.jena.sparql.ARQException;
@@ -62,7 +64,8 @@ public class LargeInputTest {
 	protected TarqlQueryExecution prepare(String query, CSVOptions options, 
 			InputStreamSource input) {
 		TarqlQuery tq = new TarqlParser(new StringReader(query)).getResult();
-		return TarqlQueryExecutionFactory.create(tq, input, options);
+		Model m = ModelFactory.createDefaultModel();
+		return TarqlQueryExecutionFactory.create(tq, input, options, m);
 	}
 
 	protected TarqlQueryExecution prepare(String query, InputStreamSource input) {
