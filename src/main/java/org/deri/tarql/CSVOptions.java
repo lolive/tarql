@@ -47,6 +47,7 @@ public class CSVOptions {
 	private Character escape = null;
 	private boolean isCSV = false;
 	private boolean isTSV = false;
+	private Map<String, UnflattenRule> unflattenRules = null;
 
 	/**
 	 * Creates a new instance with default values.
@@ -96,8 +97,19 @@ public class CSVOptions {
 			this.escape = other.escape;
 			hasExplicitEscape = true;
 		}
+		if (other.unflattenRules != null) {
+			this.unflattenRules = other.unflattenRules;
+		}
 	}
-	
+
+	public Map<String, UnflattenRule> getUnflattenRules() {
+		return unflattenRules;
+	}
+
+	public void setUnflattenRules(Map<String, UnflattenRule> unflattenRules) {
+		this.unflattenRules = unflattenRules;
+	}
+
 	public void setDefaultsForCSV() {
 		if (!hasExplicitDelimiter) {
 			delimiter = ',';
@@ -235,7 +247,7 @@ public class CSVOptions {
 	public CSVParser openParserFor(InputStreamSource source) throws IOException {
 		return new CSVParser(openReaderFor(source), 
 				columnNamesInFirstRow == null ? true : columnNamesInFirstRow,
-				delimiter, quote, escape);
+				delimiter, quote, escape, unflattenRules);
 	}
 	
 	/**

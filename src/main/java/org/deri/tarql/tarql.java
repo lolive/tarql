@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.jar.Manifest;
 
@@ -128,13 +129,27 @@ public class tarql extends CmdGeneral {
 			printHelp();
 		}
 		queryFile = getPositionalArg(0);
+		HashMap<String, UnflattenRule> unflattenRules = new HashMap<String, UnflattenRule>();
 		for (int i = 1; i < getPositional().size(); i++) {
 			String f = getPositionalArg(i);
-			if(f.endsWith(".csv"))
-				csvFiles.add(f);
-			else
-				rdfFiles.add(f);
+			if(f.startsWith("--split_")){
+				String[] colsNames = f.substring("--split_".length()).split("__");
+				String splitPattern = getPositionalArg(++i);
+				for(String colName:colsNames) {
+					unflattenRules.put(colName, new UnflattenRule(colName, splitPattern));
+				}
+				dedupWindowSize = 10000;
+			} else {
+				if(!f.startsWith("-")) {
+					if (f.endsWith(".csv") || f.endsWith(".txt"))
+						csvFiles.add(f);
+					else
+						rdfFiles.add(f);
+				}
+			}
 		}
+		options.setUnflattenRules(unflattenRules);
+
 		if (hasArg(stdinArg)) {
 			stdin = true;
 		}
@@ -202,8 +217,17 @@ public class tarql extends CmdGeneral {
 
 			Model m = ModelFactory.createDefaultModel();
 			if(!rdfFiles.isEmpty()){
-				for(String f:rdfFiles)
-					m.read(f);
+				for(String f:rdfFiles){
+					String lang = null;
+					if (f.contains(".nt"))
+						lang = "N-TRIPLE";
+					else if (f.contains(".n3"))
+						lang = "N3";
+					else if (f.contains(".ttl"))
+						lang = "TURTLE";
+					m.read(f, lang);
+				}
+
 			}
 			if (testQuery) {
 				q.makeTest();

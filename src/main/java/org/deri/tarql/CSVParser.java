@@ -4,8 +4,10 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.jena.datatypes.xsd.XSDDatatype;
+import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
@@ -26,6 +28,8 @@ import com.opencsv.CSVReader;
  */
 public class CSVParser implements ClosableIterator<Binding> {
 
+	private final Map<String, UnflattenRule> unflattenRules;
+
 	public static String getColumnName(int i) {
 		String var = "";
 		do {
@@ -45,7 +49,7 @@ public class CSVParser implements ClosableIterator<Binding> {
 	private final List<Var> vars = new ArrayList<Var>();
 	private int rownum;
 
-	private Binding binding;
+	private ArrayList<Binding> bindings = new ArrayList<>();
 	private CSVReader csv;
 
 	/**
@@ -61,7 +65,7 @@ public class CSVParser implements ClosableIterator<Binding> {
 	 *            The escape character for quotes and delimiters, or <code>null</code> for none 
 	 * @throws IOException if an I/O error occurs while reading from the input
 	 */
-	public CSVParser(Reader reader, boolean varsFromHeader, Character delimiter, Character quote, Character escape)
+	public CSVParser(Reader reader, boolean varsFromHeader, Character delimiter, Character quote, Character escape, Map<String, UnflattenRule> unflattenRules)
 			throws IOException {
 		this.reader = reader;
 		this.varsFromHeader = varsFromHeader;
@@ -70,6 +74,7 @@ public class CSVParser implements ClosableIterator<Binding> {
 		this.quote = quote == null ? '\0' : quote;
 		// OpenCSV insists on an escape character
 		this.escape = escape == null ? '\0' : escape;
+		this.unflattenRules = unflattenRules;
 		init();
 	}
 
@@ -99,17 +104,41 @@ public class CSVParser implements ClosableIterator<Binding> {
 		return value == null || "".equals(value);
 	}
 
-	private Binding toBinding(String[] row) {
-		BindingHashMap result = new BindingHashMap();
+	private ArrayList<Binding> toBindings(String[] row) {
+		ArrayList<Binding> allBindings = new ArrayList<>();
+		BindingHashMap rowToBindings = new BindingHashMap();
+		// Add current row number as ?ROWNUM
+		rowToBindings.add(TarqlQuery.ROWNUM, NodeFactory.createLiteral(
+				Integer.toString(rownum), XSDDatatype.XSDinteger));
+		allBindings.add(rowToBindings);
+
 		for (int i = 0; i < row.length; i++) {
 			if (isUnboundValue(row[i]))
 				continue;
-			result.add(getVar(i), NodeFactory.createLiteral(sanitizeString(row[i])));
+			Var var = getVar(i);
+			List<String> values = new ArrayList<>();
+			if(unflattenRules!=null && !unflattenRules.isEmpty() && unflattenRules.containsKey(var.getVarName())){
+				values.addAll(unflattenRules.get(var.getVarName()).apply(row[i]));
+			} else {
+				values.add(row[i]);
+			}
+			ArrayList<Binding> allBindings2 = new ArrayList<>();
+			for (String value : values) {
+				for(Binding binding: allBindings) {
+					BindingHashMap b = new BindingHashMap();
+					b.addAll(binding);
+					b.add(var, bindingValue(value));
+					allBindings2.add(b);
+				}
+			}
+			allBindings = allBindings2;
 		}
-		// Add current row number as ?ROWNUM
-		result.add(TarqlQuery.ROWNUM, NodeFactory.createLiteral(
-				Integer.toString(rownum), XSDDatatype.XSDinteger));
-		return result;
+
+		return allBindings;
+	}
+
+	private Node bindingValue(String s) {
+		return NodeFactory.createLiteral(sanitizeString(s));
 	}
 
 	/**
@@ -137,27 +166,33 @@ public class CSVParser implements ClosableIterator<Binding> {
 
 	@Override
 	public boolean hasNext() {
-		return binding != null;
+		ArrayList<Binding> b = bindings();
+		return b!=null && !b.isEmpty();
 	}
 
 	@Override
 	public Binding next() {
-		Binding current = binding;
-		binding = null;
-		String[] row;
-		try {
-			while ((row = csv.readNext()) != null) {
-				// Skip rows without data
-				if (isEmpty(row))
-					continue;
-				binding = toBinding(row);
-				rownum++;
-				break;
+		Binding next = bindings().remove(0);
+		return next;
+	}
+
+	private ArrayList<Binding> bindings() {
+		if(bindings==null || bindings.isEmpty()) {
+			String[] row;
+			try {
+				while ((row = csv.readNext()) != null) {
+					// Skip rows without data
+					if (isEmpty(row))
+						continue;
+					bindings = toBindings(row);
+					rownum++;
+					break;
+				}
+			} catch (IOException e) {
+				throw new TarqlException(e);
 			}
-		} catch (IOException e) {
-			throw new TarqlException(e);
 		}
-		return current;
+		return bindings;
 	}
 
 	@Override
@@ -208,7 +243,9 @@ public class CSVParser implements ClosableIterator<Binding> {
 				break;
 			}
 		}
-		rownum = 1;
-		next();
+		rownum = 0;
+		//next();
 	}
+
+
 }

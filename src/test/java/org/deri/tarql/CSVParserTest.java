@@ -7,9 +7,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
@@ -66,7 +64,7 @@ public class CSVParserTest {
 		String csv = "X,Y\n1,2";
 		assertEquals(1, countRows(csv, true));
 		assertEquals(vars("X", "Y"), getNonPseudoVars(csv, true));
-		assertEquals(binding(vars("X", "Y"), "\"1\"", "\"2\""), removePseudoVars(readCSV(csv,true).next()));
+		assertEquals(binding(vars("X", "Y"), "\"1\"", "\"2\""), removePseudoVars(readCSV(csv, true).next()));
 	}
 	
 	@Test
@@ -86,6 +84,8 @@ public class CSVParserTest {
 		String csv = "X,,Y\n1,2,3";
 		assertEquals(vars("X", "b", "Y"), getNonPseudoVars(csv, true));
 	}
+
+
 	
 	@Test
 	public void testHandleSpacesInColumnNames() throws IOException {
@@ -153,6 +153,15 @@ public class CSVParserTest {
 	}
 
 	@Test
+	public void testUnflattenCell() throws IOException {
+		String csv = "X,,Y\n1,2,\"[3,2,1]\"";
+		HashMap<String, UnflattenRule> unflattenRules = new HashMap<String, UnflattenRule>();
+		unflattenRules.put("Y", new UnflattenRule("Y", "[^\\[\\],]"));
+		assertEquals(3, countRows(readCSV(csv, true, unflattenRules)));
+
+	}
+
+	@Test
 	public void testTabSeparated() throws IOException {
 		String csv = "foo\tbar\n1\t2";
 		List<Var> vars = vars("foo", "bar");
@@ -203,19 +212,27 @@ public class CSVParserTest {
 	}
 	
 	private static CSVParser readCSV(String csv, boolean varsFromHeader) throws IOException {
-		return new CSVParser(new StringReader(csv), varsFromHeader, null, '"', null);
+		return new CSVParser(new StringReader(csv), varsFromHeader, null, '"', null, null);
+	}
+
+	private static CSVParser readCSV(String csv, boolean varsFromHeader, Map<String, UnflattenRule> unflattenRules) throws IOException {
+		return new CSVParser(new StringReader(csv), varsFromHeader, null, '"', null, unflattenRules);
 	}
 	
 	private static CSVParser readCSV(String csv, boolean varsFromHeader, char delimiter, char quote) throws IOException {
-		return new CSVParser(new StringReader(csv), varsFromHeader, delimiter, quote, null);
+		return new CSVParser(new StringReader(csv), varsFromHeader, delimiter, quote, null, null);
 	}
 	
 	private static CSVParser readCSV(String csv, boolean varsFromHeader, char escape) throws IOException {
-		return new CSVParser(new StringReader(csv), varsFromHeader, null, '"', escape);
+		return new CSVParser(new StringReader(csv), varsFromHeader, null, '"', escape, null);
 	}
-	
+
 	private static long countRows(String csv, boolean varsFromHeader) throws IOException {
 		Iterator<Binding> table = readCSV(csv, varsFromHeader);
+		return countRows(table);
+	}
+
+	private static long countRows(Iterator<Binding> table) throws IOException {
 		long count = 0;
 		while(table.hasNext()) {
 			table.next();
